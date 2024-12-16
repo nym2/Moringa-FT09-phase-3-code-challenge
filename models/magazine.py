@@ -1,3 +1,5 @@
+from database.connection import get_db_connection
+
 class Magazine:
     def __init__(self, id, name, category="General"):  # Provide default value for category
         self.id = id
@@ -45,14 +47,66 @@ class Magazine:
 
     # Method to return the articles of the magazine
     def articles(self):
-        pass
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM articles WHERE magazine_id = ?', (self.id,))
+        articles_data = cursor.fetchall()
+        conn.close()
+        
+        articles = []
+        for article in articles_data:
+            from models.article import Article
+            articles.append(Article(article["id"], article["title"], article["content"], article["author_id"], article["magazine_id"]))
+        
+        return articles
 
     # Method to return the contributing authors of the magazine
     def contributors(self):
-        pass
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT DISTINCT authors.id, authors.name
+            FROM authors
+            JOIN articles ON authors.id = articles.author_id
+            WHERE articles.magazine_id = ?
+        ''', (self.id,))
+        authors_data = cursor.fetchall()
+        conn.close()
+        
+        authors = []
+        for author in authors_data:
+            from models.author import Author
+            authors.append(Author(author["id"], author["name"]))
+        
+        return authors
 
     def article_titles(self):
-        pass
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT title FROM articles WHERE magazine_id = ?', (self.id,))
+        titles_data = cursor.fetchall()
+        conn.close()
+        
+        titles = [title["title"] for title in titles_data]
+        return titles if titles else None
 
     def contributing_authors(self):
-        pass
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT authors.id, authors.name
+            FROM authors
+            JOIN articles ON authors.id = articles.author_id
+            WHERE articles.magazine_id = ?
+            GROUP BY authors.id
+            HAVING COUNT(articles.id) > 2
+        ''', (self.id,))
+        authors_data = cursor.fetchall()
+        conn.close()
+        
+        authors = []
+        for author in authors_data:
+            from models.author import Author
+            authors.append(Author(author["id"], author["name"]))
+        
+        return authors if authors else None
